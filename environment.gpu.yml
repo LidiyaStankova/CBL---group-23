@@ -1,0 +1,20 @@
+name: py311-gpu
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - scikit-learn
+  - jupyter
+  - matplotlib
+  - pandas
+  - ipywidgets
+  - notebook
+  - seaborn
+  - jupyterlab
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cudatoolkit=11.8

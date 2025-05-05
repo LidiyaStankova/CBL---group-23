@@ -1,0 +1,22 @@
+# .gitignore
+*.csv
+*.json
+
+# large dataset files
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.rar
+
+# cache files
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+.env
+*.env
+.conda/
+.vscode/
+
+Thumbs.db
