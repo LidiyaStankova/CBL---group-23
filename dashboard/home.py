@@ -158,9 +158,6 @@ else:
     merged = lsoa_gdf[["LSOA11CD", "geometry"]].merge(counts, on="LSOA11CD", how="left")
     merged["Burglary_Count"] = merged["Burglary_Count"].fillna(0).astype(int)
 
-    # --- OPTIONAL: skip geometry simplification for better performance ---
-    # merged["geometry"] = merged["geometry"].simplify(tolerance=0.0001, preserve_topology=True)
-
     # Convert to GeoJSON string only once (avoid Python object overhead in folium)
     geojson_str = merged.to_json()
 

@@ -77,7 +77,39 @@ def preprocess_stats(df: pd.DataFrame, output_dir: str = "."):
 
     print("All statistical aggregates saved.")
 
+def preprocess_per_borough():
 
+
+    lsoa_path = r"\ESRI\LSOA_2011_London_gen_MHW.shp"
+    ward_path = r"\ESRI\London_Ward_CityMerged.shp"
+    borough_path = r"\ESRI\London_Borough_Excluding_MHW.shp"
+    csv_path = r"..\burglary_2021_2025.csv"
+
+    gdf_lsoa = gpd.read_file(lsoa_path)
+    gdf_ward = gpd.read_file(ward_path)
+    gdf_borough = gpd.read_file(borough_path)
+
+    print(gdf_lsoa.columns)
+    print(gdf_ward.columns)
+    print(gdf_borough.columns)
+
+
+    df = pd.read_csv(csv_path, parse_dates=["Month"])
+    df = df.rename(columns={"LSOA code": "LSOA11CD"})
+    df_burglary = df[df["Crime type"].str.lower() == "burglary"]
+    burglary_counts = df_burglary.groupby("LSOA11CD").size().reset_index(name="Burglary_Count")
+
+    #Merge
+    gdf_lsoa = gdf_lsoa.merge(burglary_counts, on="LSOA11CD", how="left")
+    gdf_lsoa["Burglary_Count"] = gdf_lsoa["Burglary_Count"].fillna(0)
+
+    #Join for optaining wards names
+    gdf_lsoa = gdf_lsoa.to_crs(gdf_ward.crs)  
+    gdf_borough = gdf_borough[["NAME", "geometry"]] 
+    gdf_lsoa = gpd.sjoin(gdf_lsoa, gdf_borough, how="left", predicate="intersects")
+    gdf_lsoa = gdf_lsoa.rename(columns={"NAME": "Borough"})
+    # Save the resulting GeoDataFrame to CSV (geometry will be WKT)
+    gdf_lsoa.to_csv("./stats/lsoa_burglary_with_boroughs.csv", index=False)
 
 
 DATA_PATH   = r"..\burglary_2021_2025.csv"
@@ -89,3 +121,5 @@ PREPROCESSED_LSOA_PATH = "processed_lsoas.geojson"
 df_raw   = preprocess_data(DATA_PATH, PREPROCESSED_DATA_PATH)
 lsoa_gdf = preprocess_lsoas(LSOA_SHP_DIR, PREPROCESSED_LSOA_PATH)
 preprocess_stats(df_raw, output_dir="stats")
+preprocess_per_borough()
+preprocess_and_save_choropleth()
