@@ -1,11 +1,13 @@
 import os
+import sys
 import pandas as pd
 import geopandas as gpd
 import pyarrow.parquet as pq
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from dashboard_cleaned.other import constants as const
-import os
 from calendar import month_name
 import numpy as np
+import shutil
 
 # ─────────────────────────────────────────────────────────────────────
 # Data loaders
@@ -85,11 +87,14 @@ def lsoa_allocation_data():
     ward_list = ward_gdf.Ward.sort_values().unique()
     year_list = all_burglary_data['year'].unique()
 
+    allocation_data = pd.read_csv(const.ALLOCATION_DATA_PATH)
+    risk_scores_data = pd.read_csv(const.RISK_SCORES_PATH)
+
     for year in np.append(year_list, max(year_list) + 1):
+        if os.path.exists(const.ALLOCATION_PATH + f"/{year}"):
+            shutil.rmtree(const.ALLOCATION_PATH + f"/{year}", ignore_errors=True)
         year_dir = const.ALLOCATION_PATH + f"/{year}"
         os.makedirs(year_dir, exist_ok=True)
-
-        risk_scores_data = pd.read_csv(const.RISK_SCORES_PATH)
 
         for ward_name in ward_list:
             ward_dir = const.ALLOCATION_PATH + f"/{year}/{ward_name}"
@@ -124,10 +129,24 @@ def lsoa_allocation_data():
                 average_burglaries_month = average_monthly.mean()
                 average_burglaries_year = total_burglaries / lsoa_burglaries['year'].nunique() if lsoa_burglaries['year'].nunique() > 0 else 0
 
+                average_burglaries_month = round(average_burglaries_month, 1)
+                average_burglaries_year = round(average_burglaries_year, 1)
+
 
                 # Filter for 2025 once
                 lsoa_2025_burglaries = lsoa_burglaries[lsoa_burglaries['year'] == year].copy()
                 lsoa_2025_burglaries['month_name'] = lsoa_2025_burglaries['Month'].dt.month_name().str.lower()
+
+                patrol_hours = allocation_data.loc[
+                    allocation_data["LSOA_Code"] == lsoa_code, "Allocation"
+                ].values[0]
+
+                risk_score_row = risk_scores_data.loc[
+                    risk_scores_data["LSOAcode"] == lsoa_code, "Exp_Risk_Score"
+                ]
+                risk_score = risk_score_row.values[0] if not risk_score_row.empty else np.nan
+                if not np.isnan(risk_score):
+                    risk_score = round(risk_score, 1)
 
                 for i, month in enumerate(month_order):
                     # Only process if this month exists in the data
@@ -140,15 +159,9 @@ def lsoa_allocation_data():
                             lsoa_2025_burglaries["month_name"].isin(months_until_now)
                         ].shape[0]
 
-                    risk_score = 'xx,xx'
-                    if lsoa_code in risk_scores_data:
-                        risk_score = risk_scores_data.loc[
-                            risk_scores_data["LSOAcode"] == lsoa_code, "Exp_Risk_Score"
-                        ].values[0]
-
                     data = {
                         "LSOA": lsoa_code,
-                        "patrol_hours": 0,  # Placeholder
+                        "patrol_hours": patrol_hours,  # Placeholder
                         "average_burglaries_month": average_burglaries_month,
                         "average_burglaries_year": average_burglaries_year,
                         "peak_month": peak_month,

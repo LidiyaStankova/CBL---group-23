@@ -8,7 +8,8 @@ LSOA_SHP_DIR      = r"C:\Users\20233537\OneDrive - TU Eindhoven\Documents\Homewo
 GEO_ZIP_PATH      = r"C:\Users\20233537\OneDrive - TU Eindhoven\Documents\Homework\y2\CBL Multidisciplinary\CBL 2025 burglary\Github\CBL---group-23\dashboard_cleaned\data\raw\statistical-gis-boundaries-london.zip"
 ALLOCATION_PATH   = r"C:\Users\20233537\OneDrive - TU Eindhoven\Documents\Homework\y2\CBL Multidisciplinary\CBL 2025 burglary\Github\CBL---group-23\dashboard_cleaned\data\processed\allocation"
 PROCESSED_DATA_PATH = r"C:\Users\20233537\OneDrive - TU Eindhoven\Documents\Homework\y2\CBL Multidisciplinary\CBL 2025 burglary\Github\CBL---group-23\dashboard_cleaned\data\processed"
-RISK_SCORES_PATH  = r"C:\Users\20233537\OneDrive - TU Eindhoven\Documents\Homework\y2\CBL Multidisciplinary\CBL 2025 burglary\Github\CBL---group-23\dashboard_cleaned\data\raw\risk_scores\2025\risk_scores_january.csv"
+RISK_SCORES_PATH  = r"C:\Users\20233537\OneDrive - TU Eindhoven\Documents\Homework\y2\CBL Multidisciplinary\CBL 2025 burglary\Github\CBL---group-23\dashboard_cleaned\data\raw\log_burglary_risk_scores_v2.csv"
+ALLOCATION_DATA_PATH   = r"C:\Users\20233537\OneDrive - TU Eindhoven\Documents\Homework\y2\CBL Multidisciplinary\CBL 2025 burglary\Github\CBL---group-23\dashboard_cleaned\data\raw\allocation_halfyear.csv"
 
 BOROUGH_IN_ZIP    = "statistical-gis-boundaries-london/ESRI/London_Borough_Excluding_MHW.shp"
 WARD_IN_ZIP    = "statistical-gis-boundaries-london/ESRI/London_Ward_CityMerged.shp"

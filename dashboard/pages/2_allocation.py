@@ -4,8 +4,12 @@ import pandas as pd
 import geopandas as gpd
 import folium
 import os
+from branca.element import Element, MacroElement
+from folium import MacroElement
+from branca.element import Template, MacroElement
 
-st.set_page_config(page_title="Predictions", layout="wide")
+
+st.set_page_config(page_title="Force Allocation", layout="wide")
 
 DATA_PATH      = r"C:/Users/20233537/OneDrive - TU Eindhoven/Documents/Homework/y2/CBL Multidisciplinary/CBL 2025 burglary/Github/CBL---group-23/burglary_2021_2025.csv"
 LSOA_SHP_DIR   = r"C:/Users/20233537/OneDrive - TU Eindhoven/Documents/Homework/y2/CBL Multidisciplinary/CBL 2025 burglary/Github/CBL---group-23/dashboard/LB_shp"
@@ -36,6 +40,57 @@ def load_shape_from_zip(zip_path, inside_path):
 def load_prediction_data(month, ward=None):
     file_path = fr"C:/Users/20233537/OneDrive - TU Eindhoven/Documents/Homework/y2/CBL Multidisciplinary/CBL 2025 burglary/Github/CBL---group-23/dashboard/stats/allocation/2026/{ward}/{month}.csv"
     return pd.read_csv(file_path)
+
+required_columns = [
+    "LSOA11CD", "patrol_hours", "total_burglaries", "total_burglaries_cur_year",
+    "average_burglaries_month", "average_burglaries_year",
+    "peak_month", "low_month", "risk_score"
+]
+
+info_panel_template = """
+{% macro html(this, kwargs) %}
+
+<!-- Info panel (hidden initially) -->
+<div id="info-panel" style="
+    display: none;
+    position: fixed;
+    bottom: 50px;
+    left: 50px;
+    width: 280px;
+    background-color: white;
+    border: 2px solid #444;
+    z-index: 9999;
+    padding: 12px;
+    font-size: 14px;
+    box-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+">
+    <b>LSOA Information</b><br>
+    Click on an LSOA to see patrol details.
+</div>
+
+<script>
+function onEachFeature(feature, layer) {
+    layer.on('click', function (e) {
+        console.log("Feature clicked:", feature);
+        var props = feature.properties;
+        var panel = document.getElementById('info-panel');
+        panel.style.display = "block";
+        panel.innerHTML = 
+            "<b>LSOA Code:</b> " + props.LSOA11CD + "<br>" +
+            "<b>Patrol Hours:</b> " + props.patrol_hours + "<br>" +
+            "<b>Total Burglaries:</b> " + props.total_burglaries + "<br>" +
+            "<b>Total Burglaries This Year:</b> " + props.total_burglaries_cur_year + "<br>" +
+            "<b>Avg Burglaries / Month:</b> " + props.average_burglaries_month.toFixed(2) + "<br>" +
+            "<b>Avg Burglaries / Year:</b> " + props.average_burglaries_year.toFixed(2) + "<br>" +
+            "<b>Peak Month:</b> " + props.peak_month + "<br>" +
+            "<b>Lowest Month:</b> " + props.low_month + "<br>" +
+            "<b>Risk Score:</b> " + props.risk_score;
+    });
+}
+</script>
+
+{% endmacro %}
+"""
 
 df_raw      = load_data(DATA_PATH)
 lsoa_gdf    = load_lsoa_boundaries(LSOA_SHP_DIR)
@@ -68,27 +123,38 @@ joined = gpd.sjoin(pts_in, lsoa_gdf[["LSOA11CD","geometry"]],
 
 hours = load_prediction_data(selected_month, selected_ward)
 
-hours.columns = hours.columns.str.strip().str.upper()
-
 if "LSOA" in hours.columns:
     hours = hours.rename(columns={"LSOA": "LSOA11CD"})
 
 lsoas_in = lsoa_gdf[lsoa_gdf.geometry.centroid.within(ward_geom)].copy()
 
-print(lsoas_in['LSOA11CD'].unique().tolist())
-
+available_columns = [col for col in required_columns if col in hours.columns]
 display_gdf = (
     lsoas_in
-    .merge(hours[["LSOA11CD","PATROL_HOURS"]], on="LSOA11CD", how="left")
-    .fillna({"PATROL_HOURS": 0})
+    .merge(hours[required_columns], on="LSOA11CD", how="left")
+    .fillna({
+        "patrol_hours": 0,
+        "total_burglaries": 0,
+        "total_burglaries_cur_year": 0,
+        "average_burglaries_month": 0,
+        "average_burglaries_year": 0,
+        "peak_month": "N/A",
+        "low_month": "N/A",
+        "risk_score": "N/A"
+    })
 )
-display_gdf["PATROL_HOURS"] = display_gdf["PATROL_HOURS"].astype(int)
+display_gdf["patrol_hours"] = display_gdf["patrol_hours"].astype(int)
 
 m2 = folium.Map(
     location=[0, 0],  # temporary; will be overridden by fit_bounds
     zoom_start=13,
     tiles="cartodbpositron"
 )
+
+macro = MacroElement()
+macro._template = Template(info_panel_template)
+m2.get_root().add_child(macro)
+
 
 # Fit the map to the exact bounds of the selected ward
 bounds = ward_geom.bounds  # (minx, miny, maxx, maxy)
@@ -98,7 +164,7 @@ folium.GeoJson(ward_geom, style_function=lambda f: {"fillOpacity":0,"color":"bla
 folium.Choropleth(
     geo_data=display_gdf,
     data=display_gdf,
-    columns=["LSOA11CD","PATROL_HOURS"],
+    columns=required_columns,
     key_on="feature.properties.LSOA11CD",
     fill_color="YlGnBu",
     fill_opacity=0.7,
@@ -114,11 +180,14 @@ folium.GeoJson(
         "weight": 0              # no border thickness
     },
     tooltip=folium.features.GeoJsonTooltip(
-        fields=["LSOA11CD","PATROL_HOURS"],
+        fields=["LSOA11CD","patrol_hours"],
         aliases=["LSOA code","Needed patrol hours"],
         localize=True
-    )
+    ),
+    on_each_feature="onEachFeature"
 ).add_to(m2)
+
+
 folium.LayerControl().add_to(m2)
 
 st.subheader(f"LSOAs in {selected_ward}")

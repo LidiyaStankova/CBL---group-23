@@ -16,15 +16,7 @@ import other.constants as const
 st.set_page_config(page_title="Burglaries Overview (All‐in‐One)", layout="wide")
 
 # ─────────────────────────────────────────────────────────────────────
-# 1) Sidebar: Top‐level mode only
-# ─────────────────────────────────────────────────────────────────────
-mode = st.sidebar.radio(
-    "Display mode",
-    ("Overview",)  # only one mode for now
-)
-
-# ─────────────────────────────────────────────────────────────────────
-# 2) Data loaders (cached)
+# 1) Data loaders (cached)
 # ─────────────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner=False)
 def load_data(path):
@@ -71,7 +63,7 @@ def load_borough_boundaries(zip_path, inside_path):
     return gdf[["NAME", "geometry"]].rename(columns={"NAME": "Borough"}).to_crs(epsg=4326)
 
 # ─────────────────────────────────────────────────────────────────────
-# 3) Build “Ward × Month” GeoJSON for Actual data (cached)
+# 2) Build “Ward × Month” GeoJSON for Actual data (cached)
 # ─────────────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner=False)
 def load_ward_timegeojson():
@@ -118,7 +110,8 @@ def load_ward_timegeojson():
 
     return {"type": "FeatureCollection", "features": features}, colormap, wards_timesliced
 
-# 4) Build “Ward × Month” GeoJSON for Predicted data (cached)  ← REPLACE
+# ─────────────────────────────────────────────────────────────────────
+# 3) Build “Ward × Month” GeoJSON for Predicted data (cached)  ← REPLACE
 # ─────────────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner=False)
 def compute_predicted_timegeojson(pred_df, _ward_gdf):
@@ -169,7 +162,6 @@ def compute_predicted_timegeojson(pred_df, _ward_gdf):
 
     # ── 4) assemble one Feature **per Ward × Month** ─────────────────────
     features = []
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Assembling GeoJSON features for predicted wards...")
     for _, row in merged.iterrows():
         iso_time = row["Month"].strftime("%Y-%m-%dT00:00:00")   # folium time-slider needs iso
         val      = float(row["Ward_Burglary_Count"])
@@ -193,7 +185,6 @@ def compute_predicted_timegeojson(pred_df, _ward_gdf):
                 )
             }
         })
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Done assembling GeoJSON features for predicted wards.")
 
     return {"type": "FeatureCollection", "features": features}, colormap, merged
 
@@ -214,100 +205,99 @@ borough_gdf  = load_borough_boundaries(const.GEO_ZIP_PATH, const.BOROUGH_IN_ZIP)
 time_geojson, ward_colormap, wards_timesliced_df = load_ward_timegeojson()
 pred_geojson, pred_colormap, preds_timesliced_df = compute_predicted_timegeojson(pred_df, ward_gdf)
 
+st.warning("This page contains data that is predicted using several models. These predicted values should therefore be treated with caution and not be considered factual.")
+
 # ─────────────────────────────────────────────────────────────────────
-# 6) “Overview” (single‐page with in‐page table of contents)
+# 4) “Overview” (single‐page with in‐page table of contents)
 # ─────────────────────────────────────────────────────────────────────
-if mode == "Overview":
-    # ——— 6A) Map Section ———
-    st.title("Overview: Ward‐level Time‐Slider")
+# ——— 4A) Map Section ———
+st.title("Overview: Ward‐level Time‐Slider")
 
-    data_source = st.radio(
-        "Map Data source:",
-        ("Actual", "Predicted"),
-        horizontal=True
-    )
+data_source = st.radio(
+    "Map Data source:",
+    ("Actual", "Predicted"),
+    horizontal=True
+)
 
-    st.subheader("Map ► Use the slider below to see how burglaries in each ward changed over time")
+selected_year = st.slider(
+    "Select year to view ward‐level distribution:",
+    min_value=2021,
+    max_value=2025,
+    value=2021,
+    step=1
+)
 
-    m_time = folium.Map(
-        location=[51.5074, -0.1278],
-        zoom_start=10,
-        tiles="cartodbpositron"
-    )
+m_time = folium.Map(
+    location=[51.5074, -0.1278],
+    zoom_start=10,
+    tiles="cartodbpositron"
+)
 
 
-    geojson_data = time_geojson if data_source == "Actual" else pred_geojson
-    cmap         = ward_colormap  if data_source == "Actual" else pred_colormap
+geojson_data = time_geojson if data_source == "Actual" else pred_geojson
+cmap         = ward_colormap  if data_source == "Actual" else pred_colormap
 
-    TimestampedGeoJson(
-        data=geojson_data,
-        transition_time=200,
-        period="P1M",
-        add_last_point=True,
-        auto_play=False,
-        loop=True,
-        max_speed=1,
-        loop_button=True,
-        date_options="YYYY-MM",
-        time_slider_drag_update=True
-    ).add_to(m_time)
-    cmap.add_to(m_time)
-    folium.LayerControl().add_to(m_time)
-    st_html(m_time._repr_html_(), height=1200)
+TimestampedGeoJson(
+    data=geojson_data,
+    transition_time=200,
+    period="P1M",
+    add_last_point=True,
+    auto_play=False,
+    loop=True,
+    max_speed=1,
+    loop_button=True,
+    date_options="YYYY-MM",
+    time_slider_drag_update=True
+).add_to(m_time)
+cmap.add_to(m_time)
+folium.LayerControl().add_to(m_time)
+st_html(m_time._repr_html_(), height=1200)
 
-    # ——— 6B) Yearly Ward‐Level Distribution Section ———
-    st.markdown("## Ward‐Level Distribution of Burglary Counts (Yearly)")
+# ——— 4B) Yearly Ward‐Level Distribution Section ———
+st.markdown("## Ward‐Level Distribution of Burglary Counts (Yearly)")
+df_year = wards_timesliced_df[wards_timesliced_df["Month"].dt.year == selected_year].copy()
+df_year["Month_Num"] = df_year["Month"].dt.month
+month_labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+df_year["Month_Name"] = df_year["Month_Num"].apply(lambda m: month_labels[m - 1])
 
-    selected_year = st.slider(
-        "Select year to view ward‐level distribution:",
-        min_value=2021,
-        max_value=2025,
-        value=2021,
-        step=1
-    )
-    df_year = wards_timesliced_df[wards_timesliced_df["Month"].dt.year == selected_year].copy()
-    df_year["Month_Num"] = df_year["Month"].dt.month
-    month_labels = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
-    df_year["Month_Name"] = df_year["Month_Num"].apply(lambda m: month_labels[m - 1])
+monthly_groups = [
+    df_year.loc[df_year["Month_Num"] == m, "Ward_Burglary_Count"].values
+    for m in range(1, 13)
+]
 
-    monthly_groups = [
-        df_year.loc[df_year["Month_Num"] == m, "Ward_Burglary_Count"].values
-        for m in range(1, 13)
-    ]
+fig, ax = plt.subplots(figsize=(12, 6))
+boxprops = dict(linewidth=1.2)
+medianprops = dict(linewidth=2.0, color="black")
 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    boxprops = dict(linewidth=1.2)
-    medianprops = dict(linewidth=2.0, color="black")
+bp = ax.boxplot(
+    monthly_groups,
+    patch_artist=True,
+    boxprops=boxprops,
+    medianprops=medianprops
+)
+colors = plt.cm.tab20.colors[:12]
+for patch, c in zip(bp["boxes"], colors):
+    patch.set_facecolor(c)
+    patch.set_alpha(0.7)
 
-    bp = ax.boxplot(
-        monthly_groups,
-        patch_artist=True,
-        boxprops=boxprops,
-        medianprops=medianprops
-    )
-    colors = plt.cm.tab20.colors[:12]
-    for patch, c in zip(bp["boxes"], colors):
-        patch.set_facecolor(c)
-        patch.set_alpha(0.7)
+ax.set_title(
+    f"Monthly Burglary Counts Across Wards in {selected_year}",
+    fontsize=16,
+    pad=15
+)
+ax.set_xlabel("Month", fontsize=12)
+ax.set_ylabel("Burglary Count (per Ward)", fontsize=12)
+ax.set_xticklabels(month_labels, fontsize=10)
+ax.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
+plt.tight_layout()
+st.pyplot(fig)
 
-    ax.set_title(
-        f"Monthly Burglary Counts Across Wards in {selected_year}",
-        fontsize=16,
-        pad=15
-    )
-    ax.set_xlabel("Month", fontsize=12)
-    ax.set_ylabel("Burglary Count (per Ward)", fontsize=12)
-    ax.set_xticklabels(month_labels, fontsize=10)
-    ax.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
-    plt.tight_layout()
-    st.pyplot(fig)
+st.caption(
+    f"Each box shows how burglary counts vary across wards in {selected_year}. "
+    "E.g., the “Jan” box represents every ward’s January count for that year."
+)
 
-    st.caption(
-        f"Each box shows how burglary counts vary across wards in {selected_year}. "
-        "E.g., the “Jan” box represents every ward’s January count for that year."
-    )
-
-    # ——— 6C) Top Wards by Month Section ———
+    # ——— 4C) Top Wards by Month Section ———
 st.markdown("## Top 5 Wards for a Selected Month (2021–2025)")
 
 
@@ -391,81 +381,21 @@ else:
     )
     st.altair_chart(bar, use_container_width=True)
 
-# 6D-1) Prepare a look-up table (cached so it only runs once)
-@st.cache_data(show_spinner=False)
-def prepare_monthly_comparison(_df_raw, _pred_df):
-    # ---  HISTORICAL  -------------------------------------------------
-    hist = _df_raw[_df_raw["Crime type"].str.lower() == "burglary"].copy()
-    hist["Month"] = hist["Month"].dt.to_period("M").dt.to_timestamp()
-    hist["Year"]  = hist["Month"].dt.year
-    hist["Month_Num"] = hist["Month"].dt.month
-    hist = hist[hist["Year"].between(2021, 2024)]
+# 4D) Top 5 Boroughs by Total Burglaries
 
-    hist_avg = (
-        hist.groupby("Month_Num").size().div(4)          # 4 years → average
-             .round(1)
-             .reset_index(name="Historical_Avg")
-    )
-
-    # ---  PREDICTED  --------------------------------------------------
-    pred = _pred_df.groupby("Month_Num")["Predicted_Count"].sum().reset_index()
-    pred = pred.rename(columns={"Predicted_Count": "Predicted"})
-
-    # ---  MERGE & LABELS  --------------------------------------------
-    month_names = {
-        1:"January",2:"February",3:"March",4:"April",5:"May",6:"June",
-        7:"July",8:"August",9:"September",10:"October",11:"November",12:"December"
-    }
-    lookup = (
-        pd.DataFrame({"Month_Num": range(1, 13)})
-        .merge(hist_avg, on="Month_Num", how="left")
-        .merge(pred,      on="Month_Num", how="left")
-    )
-    lookup["Month_Name"] = lookup["Month_Num"].map(month_names)
-    return lookup
-
-monthly_lookup = prepare_monthly_comparison(df_raw, pred_df)
-
-# 6D-2) full-year bar chart  ← replace this whole block
-st.markdown("## Historical Average (2021 – 2024) vs. 12-Month Prediction (Mar-25 → Feb-26)")
-
-chart_df = monthly_lookup.melt(
-    id_vars=["Month_Num", "Month_Name"],
-    value_vars=["Historical_Avg", "Predicted"],
-    var_name="Series",
-    value_name="Burglaries"
-).dropna()
-
-monthly_lookup["Delta"] = (monthly_lookup["Predicted"] - monthly_lookup["Historical_Avg"]) / monthly_lookup["Historical_Avg"] * 100
-
-chart_df = chart_df.merge(
-    monthly_lookup[["Month_Num", "Delta"]],
-    on="Month_Num",
-    how="left"
+st.markdown("## Top 10 Boroughs by Total Burglaries (2021–2025)")
+pts = gpd.GeoDataFrame(
+    df_raw,
+    geometry=gpd.points_from_xy(df_raw.Longitude, df_raw.Latitude),
+    crs="EPSG:4326"
 )
-chart_df["Delta"] = chart_df.apply(
-    lambda row: f"{row['Delta']:.1f}%" if row["Series"] == "Predicted" else "",
-    axis=1
+joined_by_borough = gpd.sjoin(pts, borough_gdf, how="left", predicate="within")
+borough_counts = (
+    joined_by_borough
+    .groupby("Borough")
+    .size()
+    .reset_index(name="Count")
+    .sort_values("Count", ascending=False)
+    .head(10)
 )
-
-base = (
-    alt.Chart(chart_df)
-        .mark_bar()
-        .encode(
-            x=alt.X("Month_Name:N",
-                    sort=list(monthly_lookup["Month_Name"]),
-                    title=None),
-            y=alt.Y("Burglaries:Q", title="Burglaries"),
-            color=alt.Color("Series:N", legend=None),
-            tooltip=[
-                "Series:N",
-                "Burglaries:Q",
-                alt.Tooltip("Delta:N", title="Delta")
-            ]
-        )
-        .properties(width=350, height=300)   
-)
-
-chart = base.facet(column=alt.Column("Series:N", header=alt.Header(title="")))
-
-st.altair_chart(chart, use_container_width=True)
+st.bar_chart(borough_counts.set_index("Borough")["Count"].sort_values(ascending=False))
