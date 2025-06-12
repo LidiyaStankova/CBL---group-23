@@ -579,3 +579,58 @@ else:
            .properties(width=700, height=300)
     )
     st.altair_chart(bar, use_container_width=True)
+# ——— 7G) Anchor + Line‐Comparison Section ———
+st.markdown('<a id="line_compare"></a>', unsafe_allow_html=True)
+st.markdown("## Compare Two Wards Over Time")
+
+# choose actual vs predicted
+line_source = st.radio(
+    "Data source:",
+    ("Actual", "Predicted"),
+    horizontal=True,
+    key="line_compare_source"
+)
+
+# two dropdowns for exactly two wards
+wards = sorted(ward_gdf["Ward"].unique())
+col1, col2 = st.columns(2)
+ward1 = col1.selectbox("Ward 1", wards, index=0, key="ward_compare_1")
+ward2 = col2.selectbox("Ward 2", wards, index=1, key="ward_compare_2")
+
+# pick the right timesliced DataFrame and rename count column
+if line_source == "Actual":
+    df_plot = wards_timesliced_df.rename(
+        columns={"Ward_Burglary_Count": "Count"}
+    ).copy()
+else:
+    df_plot = preds_timesliced_df.rename(
+        columns={"Ward_Burglary_Count": "Count"}
+    ).copy()
+
+# filter to the two selected wards
+df_plot = df_plot[df_plot["Ward"].isin([ward1, ward2])]
+
+# DROP the geometry column so Streamlit/Arrow can serialize it
+df_plot = df_plot[["Ward", "Month", "Count"]]
+
+# build and show an Altair line chart
+import altair as alt
+chart = (
+    alt.Chart(df_plot)
+       .mark_line(point=True)
+       .encode(
+           x=alt.X("Month:T", title="Month"),
+           y=alt.Y("Count:Q", title="Burglaries"),
+           color=alt.Color("Ward:N", title="Ward"),
+           tooltip=[
+             alt.Tooltip("Ward:N"),
+             alt.Tooltip("Month:T", title="Month"),
+             alt.Tooltip("Count:Q", title="Count"),
+           ]
+       )
+       .properties(
+           width=800,
+           height=400
+       )
+)
+st.altair_chart(chart, use_container_width=True)
