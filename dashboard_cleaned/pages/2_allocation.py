@@ -49,7 +49,7 @@ info_panel_template = """
 <div id="info-panel" style="
     display: none;
     position: fixed;
-    bottom: 50px;
+    top: 50px;
     left: 50px;
     width: 280px;
     background-color: white;
@@ -86,6 +86,8 @@ function onEachFeature(feature, layer) {
 
 {% endmacro %}
 """
+
+st.warning("This page contains data that is predicted using several models. These predicted values should therefore be treated with caution and not be considered factual.")
 
 df_raw      = load_data(const.DATA_PATH)
 lsoa_gdf    = load_lsoa_boundaries(const.LSOA_SHP_DIR)
@@ -185,8 +187,6 @@ folium.GeoJson(
     ),
     on_each_feature="onEachFeature"
 ).add_to(m2)
-
-
 folium.LayerControl().add_to(m2)
 
 st.subheader(f"LSOAs in {selected_ward}")
@@ -194,23 +194,27 @@ st_html(m2._repr_html_(), height=600)
 
 df_pred = load_prediction_data(selected_month, selected_year, selected_ward)
 
-# 🔧 Clean column names
 df_pred.columns = df_pred.columns.str.strip().str.lower()
 
 df_pred = df_pred[["lsoa", "patrol_hours"]].rename(
     columns={"lsoa": "LSOA", "patrol_hours": "Patrol Hours"}
 )
 
-# Header
+total_hours = df_pred["Patrol Hours"].sum()
+total_row = pd.DataFrame([{"LSOA": "Total", "Patrol Hours": total_hours}])
+df_pred_with_total = pd.concat([df_pred, total_row], ignore_index=True)
+
+def highlight_total_row(row):
+    if row["LSOA"] == "Total":
+        return ["background-color: #1A1C24"] * len(row)  # Light gray
+    return [""] * len(row)
+
 st.title("📈 Police force allocation")
 st.markdown("This page shows the allocation of police patrol hours for upcoming months based on historical data.")
 
-# Display table
-st.dataframe(df_pred, use_container_width=True)
-
-# Optional: Chart
-if "Year" in df_pred.columns and "Month" in df_pred.columns:
-    df_pred["YM"] = df_pred["Year"].astype(str) + "-" + df_pred["Month"]
-    chart_data = df_pred.copy()
-    chart_data["YM"] = pd.to_datetime(chart_data["YM"])
-    st.line_chart(chart_data.set_index("YM")["Predicted Incidents"])
+st.dataframe(
+    df_pred_with_total.style
+        .apply(highlight_total_row, axis=1)
+        .format({"Patrol Hours": "{:.2f}"}),
+    use_container_width=True
+)

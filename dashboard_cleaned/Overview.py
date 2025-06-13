@@ -366,7 +366,6 @@ else:
     top5 = top5[["Rank", "Ward", "Count"]]
     top5 = top5.rename(columns={"Ward": "Ward_Name", "Count": label})
 
-    st.write("#### Top 5 Wards")
     st.dataframe(top5, use_container_width=True)
 
     bar = (
