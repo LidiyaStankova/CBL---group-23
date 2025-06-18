@@ -9,8 +9,10 @@ from folium import MacroElement
 from branca.element import Template, MacroElement
 import other.constants as const
 
+# Set Streamlit layout and title
 st.set_page_config(page_title="Force Allocation", layout="wide")
 
+# Load raw incident data with coordinates and date
 @st.cache_data
 def load_data(path):
     df = pd.read_csv(path, parse_dates=["Month"], dayfirst=True)
@@ -18,6 +20,7 @@ def load_data(path):
     df["LSOA11CD"] = df["LSOA code"]
     return df
 
+# Load all LSOA boundary shapefiles from a directory
 @st.cache_data
 def load_lsoa_boundaries(shp_dir):
     gdfs = [gpd.read_file(os.path.join(shp_dir, f))
@@ -27,25 +30,27 @@ def load_lsoa_boundaries(shp_dir):
     lsoa = lsoa.rename(columns={cands[0]: "LSOA11CD"})
     return lsoa.to_crs(epsg=4326)
 
+# Load a shapefile directly from a ZIP archive
 @st.cache_data
 def load_shape_from_zip(zip_path, inside_path):
     gdf = gpd.read_file(f"zip://{zip_path}!{inside_path}")
     return gdf.to_crs(epsg=4326)
 
+# Load patrol hour predictions for a given ward/month/year
 def load_prediction_data(month, year, ward=None):
     file_path = const.ALLOCATION_PATH + fr"/{year}/{ward}/{month}.csv"
     return pd.read_csv(file_path)
 
+# Columns we expect from the prediction dataset
 required_columns = [
     "LSOA11CD", "patrol_hours", "total_burglaries", "total_burglaries_cur_year",
     "average_burglaries_month", "average_burglaries_year",
     "peak_month", "low_month", "risk_score"
 ]
 
+# HTML/JS macro to enable an info popup on LSOA click
 info_panel_template = """
 {% macro html(this, kwargs) %}
-
-<!-- Info panel (hidden initially) -->
 <div id="info-panel" style="
     display: none;
     position: fixed;
@@ -62,11 +67,9 @@ info_panel_template = """
     <b>LSOA Information</b><br>
     Click on an LSOA to see patrol details.
 </div>
-
 <script>
 function onEachFeature(feature, layer) {
     layer.on('click', function (e) {
-        console.log("Feature clicked:", feature);
         var props = feature.properties;
         var panel = document.getElementById('info-panel');
         panel.style.display = "block";
@@ -83,17 +86,18 @@ function onEachFeature(feature, layer) {
     });
 }
 </script>
-
 {% endmacro %}
 """
 
+# Display prediction disclaimer
 st.warning("This page contains data that is predicted using several models. These predicted values should therefore be treated with caution and not be considered factual.")
 
-df_raw      = load_data(const.DATA_PATH)
-lsoa_gdf    = load_lsoa_boundaries(const.LSOA_SHP_DIR)
-ward_gdf    = load_shape_from_zip(const.GEO_ZIP_PATH, const.WARD_IN_ZIP)[["NAME", "geometry"]].rename(columns={"NAME": "Ward"})
+# Load all required datasets
+df_raw   = load_data(const.DATA_PATH)
+lsoa_gdf = load_lsoa_boundaries(const.LSOA_SHP_DIR)
+ward_gdf = load_shape_from_zip(const.GEO_ZIP_PATH, const.WARD_IN_ZIP)[["NAME", "geometry"]].rename(columns={"NAME": "Ward"})
 
-# Layout for dropdowns side by side
+# Create year/month/ward dropdowns
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -109,26 +113,34 @@ with col3:
     ward_list = ward_gdf.Ward.sort_values().unique()
     selected_ward = st.selectbox("Select ward:", ward_list)
 
+# Extract geometry of selected ward
 ward_geom = ward_gdf.loc[ward_gdf.Ward == selected_ward, "geometry"].iloc[0]
 
+# Create GeoDataFrame of raw incident points
 pts = gpd.GeoDataFrame(
-        df_raw,
-        geometry=gpd.points_from_xy(df_raw.Longitude, df_raw.Latitude),
-        crs="EPSG:4326"
-    )
+    df_raw,
+    geometry=gpd.points_from_xy(df_raw.Longitude, df_raw.Latitude),
+    crs="EPSG:4326"
+)
 
+# Filter points within selected ward
 pts_in = pts[pts.within(ward_geom)].copy()
 
+# Join incident points with LSOA geometries
 joined = gpd.sjoin(pts_in, lsoa_gdf[["LSOA11CD","geometry"]],
                     how="left", predicate="within")
 
+# Load patrol hour predictions
 hours = load_prediction_data(selected_month, selected_year, selected_ward)
 
+# Normalize LSOA column name if needed
 if "LSOA" in hours.columns:
     hours = hours.rename(columns={"LSOA": "LSOA11CD"})
 
+# Filter LSOAs within selected ward
 lsoas_in = lsoa_gdf[lsoa_gdf.geometry.centroid.within(ward_geom)].copy()
 
+# Merge prediction data with LSOA geometries
 available_columns = [col for col in required_columns if col in hours.columns]
 display_gdf = (
     lsoas_in
@@ -146,22 +158,22 @@ display_gdf = (
 )
 display_gdf["patrol_hours"] = display_gdf["patrol_hours"].astype(int)
 
-m2 = folium.Map(
-    location=[0, 0],  # temporary; will be overridden by fit_bounds
-    zoom_start=13,
-    tiles="cartodbpositron"
-)
+# Initialize Folium map
+m2 = folium.Map(location=[0, 0], zoom_start=13, tiles="cartodbpositron")
 
+# Add info panel macro
 macro = MacroElement()
 macro._template = Template(info_panel_template)
 m2.get_root().add_child(macro)
 
-
-# Fit the map to the exact bounds of the selected ward
-bounds = ward_geom.bounds  # (minx, miny, maxx, maxy)
+# Fit map to selected ward
+bounds = ward_geom.bounds
 m2.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]])
 
+# Add ward boundary to map
 folium.GeoJson(ward_geom, style_function=lambda f: {"fillOpacity":0,"color":"black","weight":2}).add_to(m2)
+
+# Add choropleth for patrol hours
 folium.Choropleth(
     geo_data=display_gdf,
     data=display_gdf,
@@ -172,14 +184,12 @@ folium.Choropleth(
     line_opacity=0.2,
     legend_name=f"Predicted patrol hours in {selected_ward}"
 ).add_to(m2)
+
+# Overlay interactive GeoJson layer
 folium.GeoJson(
     display_gdf,
     style_function=lambda f: {"fillOpacity":0},
-    highlight_function=lambda f: {
-        "fillOpacity": 0.1,
-        "color": None,           # removes border on highlight
-        "weight": 0              # no border thickness
-    },
+    highlight_function=lambda f: {"fillOpacity": 0.1, "color": None, "weight": 0},
     tooltip=folium.features.GeoJsonTooltip(
         fields=["LSOA11CD","patrol_hours"],
         aliases=["LSOA code","Needed patrol hours"],
@@ -187,31 +197,34 @@ folium.GeoJson(
     ),
     on_each_feature="onEachFeature"
 ).add_to(m2)
+
 folium.LayerControl().add_to(m2)
 
+# Show map in Streamlit
 st.subheader(f"LSOAs in {selected_ward}")
 st_html(m2._repr_html_(), height=600)
 
+# Load and prepare patrol hour table
 df_pred = load_prediction_data(selected_month, selected_year, selected_ward)
-
 df_pred.columns = df_pred.columns.str.strip().str.lower()
+df_pred = df_pred[["lsoa", "patrol_hours"]].rename(columns={"lsoa": "LSOA", "patrol_hours": "Patrol Hours"})
 
-df_pred = df_pred[["lsoa", "patrol_hours"]].rename(
-    columns={"lsoa": "LSOA", "patrol_hours": "Patrol Hours"}
-)
-
+# Add total row
 total_hours = df_pred["Patrol Hours"].sum()
 total_row = pd.DataFrame([{"LSOA": "Total", "Patrol Hours": total_hours}])
 df_pred_with_total = pd.concat([df_pred, total_row], ignore_index=True)
 
+# Highlight total row in output
 def highlight_total_row(row):
     if row["LSOA"] == "Total":
-        return ["background-color: #1A1C24"] * len(row)  # Light gray
+        return ["background-color: #1A1C24"] * len(row)
     return [""] * len(row)
 
+# Page title and description
 st.title("📈 Police force allocation")
 st.markdown("This page shows the allocation of police patrol hours for upcoming months based on historical data.")
 
+# Display patrol hours table
 st.dataframe(
     df_pred_with_total.style
         .apply(highlight_total_row, axis=1)
