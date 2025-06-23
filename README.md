@@ -12,34 +12,36 @@ Burglary dataset `burglary-cleaned.csv` and other datasets that are cleaned and 
 The original datasets can be cleaned and processed by following the steps in `../explainability/data_pipeline.ipynb` (adjust the datasets and directory paths at your convenience and purpose).
 
 
-> Police.uk. (2025). Police.uk open data crime dataset [Data set]. Retrieved June 13, 2025, from http://police.uk/
+- Police.uk. (2025). Police.uk open data crime dataset [Data set]. Retrieved June 13, 2025, from http://police.uk/
 
-> Census 2021, Office for National Statistics (2022)
->> Office for National Statistics. (2022). Age on arrival in the UK by country of birth (TS018) (Version 3) [Data set]. Retrieved June 13, 2025, from https://www.ons.gov.uk/datasets/TS018/editions/2021/versions/3
->> Office for National Statistics. (2022). Census 2021: Country of birth [Data set]. Retrieved June 13, 2025, from https://www.data.gov.uk/dataset/37a15fe5-53b4-4e42-9e56-fe7912f514ff/census-2021-country-of-birth
->> Office for National Statistics. (2022). Economic activity status, England and Wales: Census 2021 [Data file]. Retrieved June 13, 2025, from https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/bulletins/economicactivitystatusenglandandwales/census2021
->> Office for National Statistics. (2022). Household composition (TS003) (Version 4) [Data set]. Retrieved June 13, 2025, from https://www.ons.gov.uk/datasets/TS003/editions/2021/versions/4
->> (Optional) 
-   - Office for National Statistics. (2022). *Households by deprivation dimensions (TS011) (Version 6)* [Data set]. Retrieved June 13, 2025, from https://cy.ons.gov.uk/datasets/TS011/editions/2021/versions/6
-   - Office for National Statistics. (2025). *Nature of crime: Burglary* [Data set]. Retrieved June 13, 2025, from https://www.ons.gov.uk/peoplepopulationandcommunity/crimeandjustice/datasets/natureofcrimeburglary
+- Census 2021, Office for National Statistics (2022)
+   -  Office for National Statistics. (2022). Age on arrival in the UK by country of birth (TS018) (Version 3) [Data set]. Retrieved June 13, 2025, from https://www.ons.gov.uk/datasets/TS018/editions/2021/versions/3
+   - Office for National Statistics. (2022). Census 2021: Country of birth [Data set]. Retrieved June 13, 2025, from https://www.data.gov.uk/dataset/37a15fe5-53b4-4e42-9e56-fe7912f514ff/census-2021-country-of-birth
+   - Office for National Statistics. (2022). Economic activity status, England and Wales: Census 2021 [Data file]. Retrieved June 13, 2025, from https://www.ons.gov.uk/employmentandlabourmarket/peopleinwork/employmentandemployeetypes/bulletins/economicactivitystatusenglandandwales/census2021
+   - Office for National Statistics. (2022). Household composition (TS003) (Version 4) [Data set]. Retrieved June 13, 2025, from https://www.ons.gov.uk/datasets/TS003/editions/2021/versions/4
+   - (Optional) 
+      - Office for National Statistics. (2022). *Households by deprivation dimensions (TS011) (Version 6)* [Data set]. Retrieved June 13, 2025, from https://cy.ons.gov.uk/datasets/TS011/editions/2021/versions/6
+      - Office for National Statistics. (2025). *Nature of crime: Burglary* [Data set]. Retrieved June 13, 2025, from https://www.ons.gov.uk/peoplepopulationandcommunity/crimeandjustice/datasets/natureofcrimeburglary
 
-> IoD 2019
->> Ministry of Housing, Communities & Local Government. (2019). English indices of deprivation 2019: Explanation of deprivation data [Data set]. Retrieved June 13, 2025, from https://www.gov.uk/government/statistics/english-indices-of-deprivation-2019
-   - Main Findings: https://assets.publishing.service.gov.uk/media/5d8e26f6ed915d5570c6cc55/IoD2019_Statistical_Release.pdf
-   - Research report (how to interpret the data): https://assets.publishing.service.gov.uk/media/5d8b364ced915d03709e3cf2/IoD2019_Research_Report.pdf
-   - Frequently Asked Questions: https://assets.publishing.service.gov.uk/media/5dfb3d7ce5274a3432700cf3/IoD2019_FAQ_v4.pdf
+- IoD 2019 (13 files)
+   - Ministry of Housing, Communities & Local Government. (2019). English indices of deprivation 2019: Explanation of deprivation data [Data set]. Retrieved June 13, 2025, from https://www.gov.uk/government/statistics/english-indices-of-deprivation-2019
+      - Main Findings: https://assets.publishing.service.gov.uk/media/5d8e26f6ed915d5570c6cc55/IoD2019_Statistical_Release.pdf
+      - Research report (how to interpret the data): https://assets.publishing.service.gov.uk/media/5d8b364ced915d03709e3cf2/IoD2019_Research_Report.pdf
+      - Frequently Asked Questions: https://assets.publishing.service.gov.uk/media/5dfb3d7ce5274a3432700cf3/IoD2019_FAQ_v4.pdf
 
-> HM Revenue & Customs. (2013). Children in Poverty NI116: poverty_2013_update.xls [Data set]. Retrieved June 21, 2025, from https://data.london.gov.uk/dataset/children-poverty-ni116/
+- HM Revenue & Customs. (2013). Children in Poverty NI116: poverty_2013_update.xls [Data set]. Retrieved June 21, 2025, from https://data.london.gov.uk/dataset/children-poverty-ni116/
 
-> Greater London Authority. (2025). Statistical GIS boundary files for London [Data set]. https://data.london.gov.uk/dataset/statistical-gis-boundary-files-london/
+- Greater London Authority. (2025). Statistical GIS boundary files for London [Data set]. https://data.london.gov.uk/dataset/statistical-gis-boundary-files-london/
    - `London-wards-2018.zip`
    - `statistical-gis-boundaries-london.zip`
 
 
 # 🎬 Setting Up
 ## Environment
-> **Note:** The `environment.yml` files assume the environments has conda installed specifying `python=3.11.11+`, which uses conda chaneels. 
+> **Note:** The `../config/environment.yml` files assume the environments has conda installed specifying `python=3.11.11+`, which uses conda chaneels. 
 They are not directly compatiable with pip-only setups. 
+- `conda env create -f environment.yml`
+- `conda activate py311`
 
 > Pip-only Setup
 `pip install -r requirements.txt`
