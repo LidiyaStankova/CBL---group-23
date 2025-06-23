@@ -51,7 +51,7 @@ They are not directly compatiable with pip-only setups.
 ## OLS Linear Regression (LSAO Level Risk)
 Run `python lso_risk_regr.py`.
 The risk score for each LSOA in London is computed and full regression summary is printed.
-
+- `../model/lso_risk_regr.py`
 ### 🔧 Model Pipeline
 1. `combined_dataset.csv` (not included in the `.zip` file)
 2. Deprivation indicators (IoD) `File_6_-_IoD2019_Population_Denominators.xlsx`: income, education, health, crime, and living environment deciles
@@ -64,7 +64,6 @@ The risk score for each LSOA in London is computed and full regression summary i
 ## XGBoost Model + Optuna Time-Series Forecast (Ward Level)
 Run `python plm.py`.
 This model ingests historical burglary counts and static “risk scores". It builds lagged time-series features, tunes an XGBoost regressor with Optuna, and produces out-of-sample forecasts and demand-scores for downstream allocation.
-- `../model/lsoa_risk_reg.py`
 - `../model/plm.py`
 The model forecasts residential burglaries in next 12 months.
 
@@ -184,7 +183,7 @@ The ingested all-in-one file `FinalDataC.csv` is not included.
 Key transformations (OLS, XGBoost features, and Allocation), feature engineering, performance diagnostics, and hyperparamter ranges through Optuna are all elaborated in the report, therefore, this README.md will only contain the setup providing data collection guide, processing pipeline, and how-to-use instructions of the models.
 
 # Assumptions and Constraints
-1. OLS (`Statistical_Model.py`)
+1. OLS (`lso_risk_regre.py`)
    - Linearity and additive effects
    - No multicollinearity
    - Independe of residuals
@@ -200,13 +199,6 @@ Key transformations (OLS, XGBoost features, and Allocation), feature engineering
 - Statistical model's `log_burglary_risk_scores_v2.csv` file is ingested into `1_insights.py` in `dashboard_cleaned` directory.
 - Resulted `ward_burglary_predictions_12months.csv` file of XGBoost model is ingested into `Overview.py` in `dashboard_cleaned` directory.
 - `data/allocation_halfyear.csv` is ingested into `2_allocation.py` and `3_Resources.py`.
-
-
-
-
-
-
-
 
 ### 🚨 Disclaimer
 This guide is created with support of ChatGPT o4-mini model and VSCode's Copilot.
