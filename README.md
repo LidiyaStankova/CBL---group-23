@@ -124,18 +124,6 @@ It uses the latest 12 month forecast and produces allocations for next 6 months.
 ## Dashboard
 Run `streamlit run Overview.py`
 
-dashboard_cleaned/
-└─ data/
-   ├─ raw/
-   │  ├─ LB_shp/                     # London borough/ward shapefiles
-   │  ├─ preprocessing.py            # data cleaning & joins
-   │  └─ Patrol_Allocation_Model.py  # solver for patrol-hour allocation
-   ├─ processed/
-   │  ├─ processed_burglaries.parquet
-   │  └─ ward_burglary.feather
-   └─ other/
-      └─ constants.py                # file paths & global settings
-
 > All heavy I/O and computations are cached.
 
 - `../dashboard_cleaned/data`
@@ -203,6 +191,13 @@ Key transformations (OLS, XGBoost features, and Allocation), feature engineering
 - Statistical model's `log_burglary_risk_scores_v2.csv` file is ingested into `1_insights.py` in `dashboard_cleaned` directory.
 - Resulted `ward_burglary_predictions_12months.csv` file of XGBoost model is ingested into `Overview.py` in `dashboard_cleaned` directory.
 - `data/allocation_halfyear.csv` is ingested into `2_allocation.py` and `3_Resources.py`.
+
+
+
+
+
+
+
 
 ### 🚨 Disclaimer
 This guide is created with support of ChatGPT o4-mini model and VSCode's Copilot.
