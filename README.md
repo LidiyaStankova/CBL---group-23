@@ -9,8 +9,7 @@ Burglary in London represents a critical public-safety challenge driven by socio
 
 ## 🧹 Data Cleaning and Processing
 Burglary dataset `burglary-cleaned.csv` and other datasets that are cleaned and processed can be found in directory `explainability` in the `.zip` folder when you download the main directly from GitHub repository link provided.
-The original datasets can be cleaned and processed by following the steps in `../explainability/data_pipeline.ipynb` (adjust the datasets and directory paths at your convenience and purpose).
-
+The original datasets can be cleaned and processed by studying the steps in `../explainability/explainable.ipynb` (adjust the datasets and directory paths at your convenience and purpose). Then, datasets can be correctly joined without data leakage.
 
 - Police.uk. (2025). Police.uk open data crime dataset [Data set]. Retrieved June 13, 2025, from http://police.uk/
 
@@ -49,23 +48,21 @@ They are not directly compatiable with pip-only setups.
 
 
 # 🕳️ Project Structure
-## OLS Linear Regression (Statistical Model)
-The `Statistical_Model.py` script fits a straightforward (log–linear) OLS model to estimate a static burglary‐risk score for each LSOA, based on socio-environmental predictors. Running the script will produce `../log_burglary_risk_scores_v2.csv`.
+## OLS Linear Regression (LSAO Level Risk)
+Run `python lso_risk_regr.py`.
+The risk score for each LSOA in London is computed and full regression summary is printed.
 
-The ingested all-in-one file `FinalDataC.csv` is not included, however, it can be similarly created by studying the `explainable.ipynb` notebook in `explainability` directory.
-
-- `../model/Statistical_Model.py`
-- `../model/Statistical_Model_1.ipynb`
-- `../model/Statistical_Model_2.ipynb`
-- `../model/lsoa_risk_scores.csv`
-- `../model/log_burglarly_risk_scores_v2.csv`: 
-   - Log risk score: model prediction in log-rate
-   - Exp risk score: back-transformed "burglaries per 1,000" score
+### 🔧 Model Pipeline
+1. `combined_dataset.csv` (not included in the `.zip` file)
+2. Deprivation indicators (IoD) `File_6_-_IoD2019_Population_Denominators.xlsx`: income, education, health, crime, and living environment deciles
+3. Poverty `poverty_2013_update.xls`: 2006 vs. 2010
+4. Census 2021: `Household composition.xlsx`, `Age on arrival in UK.xlsx`, and `Economic Activity.xlsx`
+5. Linear risk score is predicted after fitting an OLS regression of burglary rates per 1,000 residents 
 
 > Recommended to rerun quarterly if new IMD or housing data is available.
 
-## XGBoost Model + Optuna Time-Series Forecast
-Run `python plm.py`
+## XGBoost Model + Optuna Time-Series Forecast (Ward Level)
+Run `python plm.py`.
 This model ingests historical burglary counts and static “risk scores". It builds lagged time-series features, tunes an XGBoost regressor with Optuna, and produces out-of-sample forecasts and demand-scores for downstream allocation.
 - `../model/lsoa_risk_reg.py`
 - `../model/plm.py`
@@ -73,23 +70,21 @@ The model forecasts residential burglaries in next 12 months.
 
 ### 🔧 Model Pipeline
 1. **Data Preparation**  
-   - **Filter** `combined_dataset.csv` to burglary events  
-   - **Aggregate** to monthly counts per LSOA  
-   - **Merge** in `lsoa_risk_scores.csv`  
-   - **Create** lagged features:  
-     - `Lag_1` (t–1 monthly count)  
-     - `Lag_3_Avg` (t–1 rolling 3-month avg)  
+   - **Filter** `combined_dataset.csv` to burglary from Jan 2022 onward
+   - Geographical data of LSOA-ward mapping are loaded.
+   - **Aggregate** to monthly counts per ward  
+   - **Merge** in `lsoa_risk_scores.csv` to compute mean, std, min, and max
+   - **Feature Engineering** temporal features (year, month, quarter, seasons, cyclical encodings) through RFECV
+   - **Create** lagged features (1, 2, 3, 6, 12), rolling stats. EWMA, trend, volatility, and interaction with risk
+   - **Hyperparameter Tuning** Optuna (minimising RMSE over 5 trials)
    - **Drop** any rows with missing lags or risk scores  
-   - **Save** as `prepared_time_series.csv`  
 2. **Train/Test Split**  
-   ```python
-   X = df[['Lag_1','Lag_3_Avg','Risk_Score']]
-   y = df['Burglary_Count']
-   X_train, X_test, y_train, y_test = train_test_split(
-       X, y, shuffle=False, test_size=0.2
-   )
+   - Trained the XGBRegressor on selected features (RMSE, MAE, and $R^2$ are reported on both splits)
+3. **12-month Forecasts**
+   - Monthly recursive forecasting per ward is saved
+   - Outputs `ward_burglary_predictions_12months.csv`
 
-Justification and assumptions of the model can be found in the report. Similarly for hyper parameter tuning, final model fit, and prediction are explained to subsequently evaluate metrics (RMSE, MAE, MAPE, R-squared).
+Justification and assumptions of the model can be found in the report. Similarly for hyper parameter tuning, final model fit, and prediction are explained to subsequently evaluate the metrics.
 
 > Suggested to retrain the model monthly as soon as prior month's crime figures are available.
 
@@ -101,15 +96,20 @@ Running `python Patrol_Allocation_Model.py` will produce `../data/allocation_hal
       - pandas DataFrame with `Month`, `Ward`, `Predicted_Burglaries`.  
    - `ward_lsoa_with_area.csv`
       - merges ward - LSOA and area (km²).
-2. **Set monthly bounds**  
+2. **Set monthly bounds** 
+   - Maximise $\sum_{i}{r_i \alpha_i (1 + X_i)}
+   - Total ward has a budget cap of 3,200 h
+   - Minimum 1 h per day per LSOA
    ```python
-   days = tm.days_in_month
-   base_max = 2.6 * days
-   base_min = 1.0 * days
-   (hours per LSOA)
+      days = tm.days_in_month
+      base_max = 2.6 * days
+      base_min = 1.0 * days
+      (hours per LSOA)
+3. **Output**
+   - Allocations are rounded up to the nearest 0.25 h into a combined `csv` file
 
 Detailed computation of area-scaled caps, weights, and optimisation can be found in the report. 
-It uses the latest 12 month forecast and produces allocations for next 6 months.
+It uses the latest 12 month forecast and produces patrol-hour allocations for next 6 months per ward and LSOA.
 
 - `allocation_halfyear.csv`: Model output (6 months)
 - `../model/Patrol_Allocation_Model.py`: Allocation solver
@@ -123,7 +123,6 @@ It uses the latest 12 month forecast and produces allocations for next 6 months.
 
 ## Dashboard
 Run `streamlit run Overview.py`
-
 > All heavy I/O and computations are cached.
 
 - `../dashboard_cleaned/data`
@@ -162,17 +161,27 @@ Run `streamlit run Overview.py`
 
 ### Layout
 - `../explainability/environment.gpu.yml`
-- `../explainability/requirements.txt`
 - `../explainability/notebooks/`
    - `explainable.ipynb`: main notebook to study which contains the SHAP plots
    - `burg_cleaning.ipynb`: burglarly data cleaning steps
    - `onspd-ppd-cleaned.ipynb`: housing data preprocessing steps
       > HM Land Registry. (2025). Price Paid Data (PPD) monthly downloadable data [Data set]. Retrieved June 13, 2025, from https://www.gov.uk/government/statistical-data-sets/price-paid-data-downloads
-- `../explainability/processed`: processed data files
+
+## Statistical Model
+The `Statistical_Model.py` script fits a straightforward (log–linear) OLS model to estimate a static burglary‐risk score for each LSOA, based on socio-environmental predictors. Running the script will produce `../log_burglary_risk_scores_v2.csv`.
+
+The ingested all-in-one file `FinalDataC.csv` is not included.
+- `../model/Statistical_Model.py`
+- `../model/Statistical_Model_1.ipynb`
+- `../model/Statistical_Model_2.ipynb`
+- `../model/lsoa_risk_scores.csv`
+- `../model/log_burglarly_risk_scores_v2.csv`: 
+   - Log risk score: model prediction in log-rate
+   - Exp risk score: back-transformed "burglaries per 1,000" score
 
 
 # Report
-Key transformations (OLS, XGBoost features, and Allocation), feature engineering, performance diagnostics, and hyperparamter ranges through Optuna are all elaborated in the report, therefore, this README.md will only contain the setup provides data collection guide, processing pipeline, and how-to-use instructions of the models.
+Key transformations (OLS, XGBoost features, and Allocation), feature engineering, performance diagnostics, and hyperparamter ranges through Optuna are all elaborated in the report, therefore, this README.md will only contain the setup providing data collection guide, processing pipeline, and how-to-use instructions of the models.
 
 # Assumptions and Constraints
 1. OLS (`Statistical_Model.py`)
